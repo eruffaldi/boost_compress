@@ -1,14 +1,17 @@
-#include "lz4_filter.hpp"
+/**
+ * Comparison and Benchmarking using Boost Iostreams: LZ4 and ZLib
+ */
 #include <iostream>
 #include <fstream>
+#include <chrono>
 #include <boost/iostreams/filtering_stream.hpp>
 #include <boost/iostreams/copy.hpp>
 #include <boost/iostreams/filter/zlib.hpp>
 #include <boost/iostreams/filter/counter.hpp>
 #include <boost/iostreams/device/array.hpp>
 #include <boost/iostreams/stream.hpp>
+#include "lz4_filter.hpp"
 
-#include <chrono>
 using namespace std;
 
 namespace bio = boost::iostreams;

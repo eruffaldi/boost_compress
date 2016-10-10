@@ -1,0 +1,96 @@
+/*
+
+https://github.com/darkdragn/lz4tools/blob/master/lz4tools/lz4file.py
+
+    def load_blocks(self):
+        """
+        Generates the blkDict, making the file seekable. Only one block will
+        be decompressed at a time, minimizing memory usage.
+        """
+        self.blkDict = {}
+        total, blkNum, pos = 0, 0, 7
+        blkSize = self.get_block_size()
+        while blkSize > 0:
+            data = self.read_block(blkSize, setCur=False)
+            total += len(data)
+            self.blkDict.update({blkNum: {'comp_begin': pos,
+                                'decomp_e': total, 'blkSize': blkSize}})
+            blkNum += 1
+            if not self.fileObj.tell() == self.compEnd:
+                blkSize = self.get_block_size()
+            else:
+                break
+            pos = self.fileObj.tell()
+        self.end = total-1
+        del data, total
+        self.curBlk = 0
+        self.decomp = self.read_block(blk=self.blkDict.get(0))
+        self.seek(0)
+
+ def get_block_size(self):
+        """
+        :type file: fileObj - At least seeked to 7 (past header)
+        Static method to determine next block's blockSize.
+        """
+        size = struct.unpack('<I', self.fileObj.read(4))[0]
+        self.fileObj.seek(self.fileObj.tell()-4)
+        returnSize = (size & 0x7FFFFFFF)
+        if not returnSize:
+            return 0
+        return returnSize+4
+
+def seek(self, offset, whence=0):
+        """
+        :type int: offset
+        File seek-like function. Accepts offset. Whence for future improvement,
+        but not yet implemented.
+        """
+        thisBlk = int()
+        if not offset:
+            blk = self.blkDict.get(0)
+        else:
+            try:
+                iteritems = self.blkDict.iteritems
+            except AttributeError:
+                iteritems = self.blkDict.items
+            thisBlk, blk = [[num, b] for num, b in iteritems()
+                            if offset < b.get('decomp_e')][0]
+        if self.curBlk == thisBlk:
+            self.pos = offset
+        else:
+            self.curBlk = thisBlk
+            self.decomp = self.read_block(blk=blk, setCur=False)
+            self.pos = offset
+ 
+
+    def read_block(self, blkSize=None, blk=None, setCur=True):
+        """
+        :type int:  blkSize - returned from get_block_size()
+        :type dict: blk     - entry from blkDict
+        :type bool: setCur  - update current blk var
+        Reads the next block, unless provided a blk from blkDict. If provided
+        a blk, it will read that specific block.
+        """
+        if blk:
+            self.fileObj.seek(blk.get('comp_begin'))
+            blkSize = blk.get('blkSize')
+        if not blkSize:
+            blkSize = self.get_block_size()
+        if blkSize == 0:
+            return ''
+        if setCur:
+            try:
+                iteritems = self.blkDict.iteritems
+            except AttributeError:
+                iteritems = self.blkDict.items
+            self.curBlk = [num for num, b in iteritems()
+                           if self.fileObj.tell() == b.get('comp_begin')][0]
+        if (self.fileObj.tell() + blkSize + 8) == self.compEnd:
+            blkSize += 8
+            regen = True
+        compData = self.fileObj.read(blkSize)
+        resultDict = lz4f.decompressFrame(compData, self.dCtx, self.blkSizeID)
+        if 'regen' in locals():
+            self._regenDCTX()
+        return resultDict.get('decomp')
+ */
