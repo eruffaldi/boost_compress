@@ -10,6 +10,7 @@
 #include <boost/iostreams/filter/counter.hpp>
 #include <boost/iostreams/device/array.hpp>
 #include <boost/iostreams/stream.hpp>
+#include <boost/iostreams/device/null.hpp>
 #include "lz4_filter.hpp"
 
 using namespace std;
@@ -67,22 +68,29 @@ int main(int argc, char** argv){
 		cerr << "error: invalid argument!" << endl;
 		return 3;
 	}
+	bool none = false;
     std::cerr << "go! " << argv[1] << std::endl;
 
 	switch(argv[1][1]){
 		case 'c':
+		std::cerr << "LZ4 compress\n";
 			bifo.push( ext::bio::lz4_compressor() );
 			break;
 		case 'd':
+		std::cerr << "LZ4 decompress\n";
 			bifo.push( ext::bio::lz4_decompressor() );
 			break;
 		case 'C':
+		std::cerr << "ZLIB compress\n";
 			bifo.push( bio::zlib_compressor() );
 			break;
 		case 'D':
+		std::cerr << "ZLIB decompress\n";
 			bifo.push( bio::zlib_decompressor() );
 			break;
 		case 'M':
+		std::cerr << "nothing\n";
+			none = true;
 			break;
 		default:
 			cerr << "error: invalid argument!" << endl;
@@ -94,19 +102,38 @@ int main(int argc, char** argv){
 
 	auto start = std::chrono::high_resolution_clock::now();
     bifo.push(bio::counter());
-    bifo.push( cout );
-    bifo.exceptions( std::ifstream::eofbit | std::ifstream::failbit | std::ifstream::badbit );
-    boost::iostreams::copy(buf.size() == 0 ? cin : input_stream, bifo,64*1024);
-    //bifo.flush();
+    boost::iostreams::stream< boost::iostreams::null_sink > nullOstream( ( boost::iostreams::null_sink() ) );
 
+    bifo.push( nullOstream );
+    bifo.exceptions( std::ifstream::eofbit | std::ifstream::failbit | std::ifstream::badbit );
+    int insize = 0;
+    bool withcounter = true;
+    const int bufsize = 64*1024;
+    if(buf.size() == 0)
+    {
+	    bio::filtering_istream bifi;
+	    bifi.push(std::cin);
+	    if(withcounter)
+	    	bifi.push(bio::counter());
+	    boost::iostreams::copy(bifi, bifo,bufsize);
+	    insize = withcounter ? bifi.component<0, bio::counter>()->characters() : -1;
+		auto end = std::chrono::high_resolution_clock::now();
+    }
+    else
+    {    	
+	    boost::iostreams::copy(input_stream, bifo,bufsize);
+    	insize = buf.size();
+    }
+    auto outsize = withcounter ? (none ? bifo.component<0, bio::counter>()->characters() : bifo.component<1, bio::counter>()->characters() ) : -1;
 	auto end = std::chrono::high_resolution_clock::now();
+
 	std::chrono::duration<double> diff = end-start;
-	auto n = bifo.component<1, bio::counter>()->characters() ;
-	if(buf.size() != 0)
-		std::cerr << "Insize " << buf.size() << std::endl;
-	std::cerr << "Outsize "  << n << " ints : " << diff.count() << " s " << (n/diff.count())/1E6 << " MB/s \n";
-	if(buf.size() != 0)
-			std::cerr << "Ratio "  << buf.size()/(double)n << std::endl;
+	std::cerr << "Insize " << insize << std::endl;
+	std::cerr << "Outsize "  << outsize << std::endl;
+	std::cerr << "Ratio "  << insize/(double)outsize <<":1" << std::endl;
+	std::cerr << "Duration "  << diff.count() <<  std::endl;
+	std::cerr << "Inspeed  "  <<  (insize/diff.count())/1E6 << " MB/s" << std::endl;
+	std::cerr << "Outspeed "  <<  (outsize/diff.count())/1E6 << " MB/s" << std::endl;
 
 	return 0;
 }

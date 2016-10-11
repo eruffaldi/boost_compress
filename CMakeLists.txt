@@ -14,3 +14,4 @@ include_directories(${LZ4_INCLUDES})
 link_libraries(z)
 
 add_executable(test test.cpp lz4_filter.cpp)
+target_link_libraries(test lz4)
