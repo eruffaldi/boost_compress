@@ -108,20 +108,25 @@ int main(int argc, char** argv){
     bifo.exceptions( std::ifstream::eofbit | std::ifstream::failbit | std::ifstream::badbit );
     int insize = 0;
     bool withcounter = true;
-    const int bufsize = 64*1024;
+    const int bufsize = 32*1024;
+    std::cout << "Buffer Size " << bufsize << std::endl;
     if(buf.size() == 0)
     {
 	    bio::filtering_istream bifi;
 	    bifi.push(std::cin);
 	    if(withcounter)
 	    	bifi.push(bio::counter());
+		std::cerr << "Action started in NON buffered mode\n";
 	    boost::iostreams::copy(bifi, bifo,bufsize);
+		std::cerr << "DONE\n";
 	    insize = withcounter ? bifi.component<0, bio::counter>()->characters() : -1;
 		auto end = std::chrono::high_resolution_clock::now();
     }
     else
     {    	
+		std::cerr << "Action started in buffered mode\n";
 	    boost::iostreams::copy(input_stream, bifo,bufsize);
+		std::cerr << "DONE\n";
     	insize = buf.size();
     }
     auto outsize = withcounter ? (none ? bifo.component<0, bio::counter>()->characters() : bifo.component<1, bio::counter>()->characters() ) : -1;
@@ -134,6 +139,18 @@ int main(int argc, char** argv){
 	std::cerr << "Duration "  << diff.count() <<  std::endl;
 	std::cerr << "Inspeed  "  <<  (insize/diff.count())/1E6 << " MB/s" << std::endl;
 	std::cerr << "Outspeed "  <<  (outsize/diff.count())/1E6 << " MB/s" << std::endl;
+
+	if(buf.size() > 0)
+	{
+		std::cerr << "Test MemCpy" << std::endl;
+		start = std::chrono::high_resolution_clock::now();
+		std::vector<uint8_t> out(buf.size());
+		memcpy(&out[0],&buf[0],buf.size());
+		end = std::chrono::high_resolution_clock::now();
+		std::chrono::duration<double> diff = end-start;
+		std::cerr << "Duration "  << diff.count() <<  std::endl;
+		std::cerr << "Memcpy Speed  "  <<  (insize/diff.count())/1E6 << " MB/s" << std::endl;
+	}
 
 	return 0;
 }
